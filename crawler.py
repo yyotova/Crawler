@@ -35,27 +35,39 @@ Base.metadata.create_all(engine)
 
 def main():
 
-    url = 'http://register.start.bg/'
-    r = requests.get(url)
-    server = r.headers["Server"]
-    website = Website(location=url, server=server)
-
     with session_scope() as session:
-        session.add(website)
+        url = 'http://register.start.bg/'
+        queue = [url]
 
-    queue = [url]
+        while len(queue):
+            next_url = queue[0]
+            queue.remove(queue[0])
+            try:
+                r = requests.get(next_url)
+            except requests.exceptions.ConnectionError:
+                continue
 
-    while len(queue):
-        queue.remove(queue[0])
+            server = r.headers["Server"]
+            website = Website(location=next_url, server=server)
+            session.add(website)
+            session.commit()
 
-    html = r.content.decode('utf-8')
-    soup = BeautifulSoup(html, 'html.parser')
+            try:
+                html = r.content.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
+            finally:
+                soup = BeautifulSoup(html, 'html.parser')
 
-    for link in soup.find_all('a'):
-        a = str(link.get('href'))
-        if a.startswith('http'):
-            queue.append(a)
-            # print(a)
+                for link in soup.find_all('a'):
+                    link = str(link.get('href'))
+                    if link.startswith('http'):
+                        queue.append(link)
+                        # print(link)
+                    elif link is not None and not link.startswith('#'):
+                        link = url + link
+                        queue.append(link)
+                        # print(link)
 
 
 if __name__ == '__main__':
