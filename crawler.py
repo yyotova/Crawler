@@ -49,8 +49,10 @@ def main():
 
             server = r.headers["Server"]
             website = Website(location=next_url, server=server)
-            session.add(website)
-            session.commit()
+            result_in_db = session.query(Website).filter(Website.location == next_url).first()
+            if result_in_db is None:
+                session.add(website)
+                session.commit()
 
             try:
                 html = r.content.decode('utf-8')
@@ -63,11 +65,11 @@ def main():
                     link = str(link.get('href'))
                     if link.startswith('http'):
                         queue.append(link)
-                        # print(link)
+                        print(link)
                     elif link is not None and not link.startswith('#'):
                         link = url + link
                         queue.append(link)
-                        # print(link)
+                        print(link)
 
 
 if __name__ == '__main__':
