@@ -5,6 +5,7 @@ import requests
 from contextlib import contextmanager
 from bs4 import BeautifulSoup
 import sys
+import datetime
 
 
 engine = create_engine('sqlite:///web_crawler.db')
@@ -30,6 +31,7 @@ class Website(Base):
     website_id = Column(Integer, primary_key=True)
     location = Column(String)
     server = Column(String)
+    crawled_at = Column(String)
 
 
 Base.metadata.create_all(engine)
@@ -46,10 +48,18 @@ def main():
 
     with session_scope() as session:
         url = 'http://register.start.bg/'
-        queue = [url]
+        web = session.query(Website).order_by(Website.website_id.desc()).first()
+        if web is None:
+            print('ala')
+            queue = [url]
+        else:
+            print('bala')
+            queue = [web.location]
 
+        print(queue)
         while len(queue):
             next_url = queue[0]
+            print('NEW_URL:  ', next_url)
             queue.remove(queue[0])
             try:
                 r = requests.get(next_url)
@@ -57,7 +67,7 @@ def main():
                 continue
 
             server = r.headers["Server"]
-            website = Website(location=next_url, server=server)
+            website = Website(location=next_url, server=server, crawled_at=datetime.datetime.now())
             result_in_db = session.query(Website).filter(Website.location == next_url).first()
             if result_in_db is None:
                 session.add(website)
@@ -66,7 +76,7 @@ def main():
             try:
                 html = r.content.decode('utf-8')
             except UnicodeDecodeError:
-                pass
+                continue
             finally:
                 soup = BeautifulSoup(html, 'html.parser')
 
@@ -83,8 +93,11 @@ def main():
 
 if __name__ == '__main__':
     try:
-        main()
+        command = input('crawler or histogram: ')
+        if command == 'c':
+            main()
+        elif command == 'h':
+            print('\n HISTOGRAM: \n')
+            histogram()
     except KeyboardInterrupt:
-        print('\n HISTOGRAM: \n')
-        histogram()
         sys.exit(0)
