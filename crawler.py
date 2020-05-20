@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 import requests
 from contextlib import contextmanager
 from bs4 import BeautifulSoup
+import sys
 
 
 engine = create_engine('sqlite:///web_crawler.db')
@@ -32,6 +33,14 @@ class Website(Base):
 
 
 Base.metadata.create_all(engine)
+
+
+def histogram():
+    with session_scope() as session:
+        servers = session.query(Website).all()
+        for s in servers:
+            print(s.server)
+
 
 def main():
 
@@ -73,4 +82,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\n HISTOGRAM: \n')
+        histogram()
+        sys.exit(0)
