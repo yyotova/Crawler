@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from bs4 import BeautifulSoup
 import sys
 import datetime
+from analitic_chart import show_chart
 
 
 engine = create_engine('sqlite:///web_crawler.db')
@@ -37,6 +38,48 @@ class Website(Base):
 Base.metadata.create_all(engine)
 
 
+def menu():
+    print(f'''
+        Choose option:
+        1. How many links are visited in last [time range]?
+        2. How many unique domains visited in last [time range]?
+        ''')
+
+
+str_range = []
+visited = []
+
+
+def last_visited(time_range):
+    global str_range
+    global visited
+    with session_scope() as session:
+        if time_range[1] in ['hour', 'hours']:
+            time = datetime.datetime.now() - datetime.timedelta(hours=int(time_range[0]))
+            str_range.append(f'{str(datetime.datetime.now())[:19]} - {str(time)[:19]}')
+            websites = session.query(Website).filter(Website.crawled_at > time).all()
+            visited.append(len(websites))
+            return len(websites)
+        elif time_range[1] in ['day', 'days']:
+            time = datetime.datetime.now() - datetime.timedelta(days=int(time_range[0]))
+            str_range.append(f'{str(datetime.datetime.now())[:19]} - {str(time)[:19]}')
+            websites = session.query(Website).filter(Website.crawled_at > time).all()
+            visited.append(len(websites))
+            return len(websites)
+        elif time_range[1] == 'seconds':
+            time = datetime.datetime.now() - datetime.timedelta(seconds=int(time_range[0]))
+            str_range.append(f'{str(datetime.datetime.now())[:19]} - {str(time)[:19]}')
+            websites = session.query(Website).filter(Website.crawled_at > time).all()
+            visited.append(len(websites))
+            return len(websites)
+        elif time_range[1] in ['year', 'years']:
+            time = datetime.datetime.now() - datetime.timedelta(years=int(time_range[0]))
+            str_range.append(f'{str(datetime.datetime.now())[:19]} - {str(time)[:19]}')
+            websites = session.query(Website).filter(Website.crawled_at > time).all()
+            visited.append(len(websites))
+            return len(websites)
+
+
 def histogram():
     with session_scope() as session:
         servers = session.query(Website).all()
@@ -45,21 +88,17 @@ def histogram():
 
 
 def main():
-
     with session_scope() as session:
         url = 'http://register.start.bg/'
         web = session.query(Website).order_by(Website.website_id.desc()).first()
         if web is None:
-            print('ala')
             queue = [url]
         else:
-            print('bala')
             queue = [web.location]
 
         print(queue)
         while len(queue):
             next_url = queue[0]
-            print('NEW_URL:  ', next_url)
             queue.remove(queue[0])
             try:
                 r = requests.get(next_url)
@@ -93,11 +132,25 @@ def main():
 
 if __name__ == '__main__':
     try:
-        command = input('crawler or histogram: ')
+        command = input('Crawler, Histogram or Analitics: ')
         if command == 'c':
             main()
         elif command == 'h':
             print('\n HISTOGRAM: \n')
             histogram()
+        elif command == 'a':
+            menu()
+            option = input('Option: ')
+            if option == '1':
+                exit = False
+                while not exit:
+                    range_time = input('Enter time range: ')
+                    time = range_time.split(' ')
+                    print('Visited websites:', last_visited(time))
+                    if input('One more time range? ') in ['no', 'n']:
+                        exit = True
+                chart = input('Do you want a chart? ')
+                if chart in ['yes', 'y']:
+                    show_chart(str_range, visited)
     except KeyboardInterrupt:
         sys.exit(0)
